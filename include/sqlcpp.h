@@ -8,7 +8,7 @@
 #include <cstring>
 #include <cstdlib>
 
-#define DB_PATH "/Users/billw/Xcode/ExerciseFiles/db"
+#define DB_PATH "../db"                               //Relative path to db folder
 #define MAX_STRING_LENGTH 65536
 #define MAX_SMALL_STRING_LENGTH 1024
 #define MAX_TINY_STRING_LENGTH 16   // mostly for itoa()
