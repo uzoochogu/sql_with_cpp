@@ -12,3 +12,10 @@ target_include_directories( hello-sqlite
         ${PROJECT_SOURCE_DIR}/include
 )
 
+add_executable(db-query src/sqlite3.c src/db-query.cpp)
+
+target_include_directories( db-query
+    PRIVATE 
+        ${PROJECT_SOURCE_DIR}/include
+)
+
