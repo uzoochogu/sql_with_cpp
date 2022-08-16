@@ -6,12 +6,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 #sources
-set( sources "hello-sqlite" "db-query")
+set(sources "hello-sqlite" "db-query" "db-prepare")
 
 
 #executables
-foreach(File in LISTS sources)
-    add_executable(${File} src/sqlite3.c "src/${File}.cpp")
+foreach(File IN LISTS sources)
+    add_executable(${File} src/sqlite3.c src/${File}.cpp)
 
     target_include_directories( ${File}
     PRIVATE 
