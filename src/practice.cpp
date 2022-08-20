@@ -24,7 +24,7 @@ int main()
     //open the database
     int rc = sqlite3_open(db_file, &db);
 
-    //check that it is open
+    //check that opening was successful
     if(rc == SQLITE_OK)
     {
         std::cout << "database open";
@@ -45,7 +45,34 @@ int main()
         return 1;
     }
 
-    std::cout << "close db\n";
+    //Using prepared Statements
+    std::cout << "Prepared Statements:\n";
+    sqlite3_prepare_v2(db, "SELECT * FROM students", -1, &stmt, nullptr);
+
+    std::cout << "Fetch Rows:\n";
+    int col_count = sqlite3_column_count(stmt);
+    int row_count = 0;
+
+    //step through the rows
+    while(sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        std::cout << "row " << ++row_count << ": ";
+        //step through the columns 
+        for(int i = 0; i < col_count; ++i)
+        {
+            std::cout << sqlite3_column_text(stmt, i);
+            if(i < col_count - 1) std::cout << ", ";
+        }
+        std::cout << "\n";
+        
+    }
+
+    //Always finalize!
+    std::cout << "Statement Finalized";
+    sqlite3_finalize(stmt);
+
+
+    std::cout << "\nclose db\n";
     sqlite3_close(db);
     return 0;
 }
