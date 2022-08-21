@@ -72,6 +72,40 @@ int main()
     sqlite3_finalize(stmt);
 
 
+    //Using Prepared statements and Bind
+    
+    // find a row
+    std::cout << "\nfind row with name='Emeka Frank'";
+    const char * sql_prepare = "SELECT * FROM students WHERE name = ?";
+    const char * param1 = "Emeka Frank";
+    sqlite3_prepare_v2(db, sql_prepare, -1, &stmt, nullptr);
+    std::cout << "\nstatement: " << sql_prepare << "\n";
+    std::cout << "the statement has " << sqlite3_bind_parameter_count(stmt) << " parameter(s)\n";
+
+    // bind the string to the statement
+    // sqlite3_bind_text(stmt, param_position, param_string, param_length (or -1 for strlen), destructor or constant);
+    sqlite3_bind_text(stmt, 1, param1, -1, SQLITE_STATIC);
+    col_count = sqlite3_column_count(stmt);
+    row_count = 0;
+    while(sqlite3_step(stmt) == SQLITE_ROW) 
+    {
+        std::cout << "row " << ++row_count << " : ";
+        for(int i = 0; i < col_count; ++i) {
+            std::cout << sqlite3_column_text(stmt, i);
+            if(i < col_count - 1) std::cout <<  ", ";
+            else std::cout <<"\n";
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    //Drop the table
+    std::cout << "drop table\n";
+    rc = sqlite3_exec(db, "DROP TABLE IF EXISTS students", nullptr, nullptr, nullptr);
+    if(rc != SQLITE_OK) {
+        puts(sqlite3_errmsg(db));
+        return 1;
+    }
+
     std::cout << "\nclose db\n";
     sqlite3_close(db);
     return 0;
