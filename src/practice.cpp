@@ -89,22 +89,15 @@ int main()
     row_count = 0;
     while(sqlite3_step(stmt) == SQLITE_ROW) 
     {
-        std::cout << "row " << ++row_count << " : ";
+        std::cout << "row " << ++row_count << " :\n";
         for(int i = 0; i < col_count; ++i) {
             std::cout << sqlite3_column_text(stmt, i);
             if(i < col_count - 1) std::cout <<  ", ";
             else std::cout <<"\n";
         }
     }
+    std::cout << "\n\nOnly " << row_count << " row(s) found.\n";
     sqlite3_finalize(stmt);
-
-    //Drop the table
-    std::cout << "drop table\n";
-    rc = sqlite3_exec(db, "DROP TABLE IF EXISTS students", nullptr, nullptr, nullptr);
-    if(rc != SQLITE_OK) {
-        puts(sqlite3_errmsg(db));
-        return 1;
-    }
 
     std::cout << "\nclose db\n";
     sqlite3_close(db);
