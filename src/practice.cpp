@@ -1,11 +1,10 @@
-#include <cstdio>
 #include <iostream>
 #include <sqlite3.h>
 #include <sqlcpp.h>
 
 constexpr const char *db_file = DB_PATH "/practice.db";
 
-constexpr const char * sql_create =
+constexpr const char * sql_create_db1 =
         "DROP TABLE IF EXISTS students;"
         "BEGIN;"
         "CREATE TABLE IF NOT EXISTS students( student_id INTEGER, name VARCHAR(55), year INTEGER);"
@@ -15,8 +14,39 @@ constexpr const char * sql_create =
         "COMMIT;"
 ;
 
+constexpr const char * db_file2 = DB_PATH "/scratch.db";
+
+constexpr const char * sql_drop = "DROP TABLE IF EXISTS temp";
+constexpr const char * sql_create = "CREATE TABLE IF NOT EXISTS temp ( a TEXT, b TEXT, c TEXT )";
+constexpr const char * sql_insert = "INSERT INTO temp VALUES (?, ?, ?)";
+constexpr const char * sql_begin = "BEGIN";
+constexpr const char * sql_commit = "COMMIT";
+constexpr const char * sql_select_all = "SELECT * FROM temp";
+constexpr const char * sql_select_where = "SELECT * FROM temp WHERE a = ?";
+
+constexpr const char * insert_strings[] = {
+    "one", "two", "three",
+    "two", "three", "four",
+    "three", "four", "five",
+    "four", "five", "six",
+    "five", "six", "seven"
+};
+
+int sql_do(sqlite3 * db, const char * sql) 
+{
+    std::cout << "sql_do: " << sql << "\n";
+    int rc = sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
+    if(rc != SQLITE_OK) 
+    {
+        std::cout << sqlite3_errstr(rc);
+        exit(1);
+    }
+    return sqlite3_changes(db);    //good practice to return this
+}
+
 int main()
 {
+    //practice.db
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
     char *errmsg = nullptr;
@@ -25,9 +55,9 @@ int main()
     int rc = sqlite3_open(db_file, &db);
 
     //check that opening was successful
-    if(rc == SQLITE_OK)
+    if (rc == SQLITE_OK)
     {
-        std::cout << "database open";
+        std::cout << "database practice.db open";
     }
     else
     {
@@ -37,8 +67,8 @@ int main()
 
     //Create a Table
     std::cout << "\nCreate the table\n";
-    rc = sqlite3_exec(db, sql_create, nullptr, nullptr, &errmsg);
-    if(rc != SQLITE_OK)
+    rc = sqlite3_exec(db, sql_create_db1, nullptr, nullptr, &errmsg);
+    if (rc != SQLITE_OK)
     {
         std::cout << errmsg;
         sqlite3_free(errmsg);
@@ -54,11 +84,11 @@ int main()
     int row_count = 0;
 
     //step through the rows
-    while(sqlite3_step(stmt) == SQLITE_ROW)
+    while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         std::cout << "row " << ++row_count << ": ";
         //step through the columns 
-        for(int i = 0; i < col_count; ++i)
+        for (int i = 0; i < col_count; ++i)
         {
             std::cout << sqlite3_column_text(stmt, i);
             if(i < col_count - 1) std::cout << ", ";
@@ -87,10 +117,11 @@ int main()
     sqlite3_bind_text(stmt, 1, param1, -1, SQLITE_STATIC);
     col_count = sqlite3_column_count(stmt);
     row_count = 0;
-    while(sqlite3_step(stmt) == SQLITE_ROW) 
+    while (sqlite3_step(stmt) == SQLITE_ROW) 
     {
         std::cout << "row " << ++row_count << " :\n";
-        for(int i = 0; i < col_count; ++i) {
+        for (int i = 0; i < col_count; ++i) 
+        {
             std::cout << sqlite3_column_text(stmt, i);
             if(i < col_count - 1) std::cout <<  ", ";
             else std::cout <<"\n";
@@ -100,6 +131,110 @@ int main()
     sqlite3_finalize(stmt);
 
     std::cout << "\nclose db\n";
+    sqlite3_close(db);
+
+    //reset handlers
+    db = nullptr;
+    stmt = nullptr;
+
+
+    //Demonstrate a more advanced use of bind
+    //scratch.db
+    rc = sqlite3_open(db_file2, &db);
+
+    if (rc == SQLITE_OK)
+    {
+        std::cout << "\n\ndatabase scatch.db open\n\n";
+    }
+    else
+    {
+        std::cout << "\n\nsqlite3_open returned an error (" << rc << ")\n";
+        exit(1);
+    }
+
+    std::cout << "Drop the table:\n";
+    sql_do(db, sql_drop);
+
+    std::cout << "create the table:\n";
+    sql_do(db, sql_create);
+
+    std::cout << "begin transaction:\n";
+    sql_do(db, sql_begin);
+
+    // insert rows using prepared statement
+    std::cout << "insert rows:\n";
+    sqlite3_prepare_v2(db, sql_insert, -1, &stmt, nullptr);
+    int num_params = sqlite3_bind_parameter_count(stmt);
+    std::cout << "The statement " << sql_insert << " has " << num_params << " parameter(s)\n";
+    int num_rows = sizeof(insert_strings) / sizeof(const char *) / num_params;      //obtains the number of batches of binds to do
+    std::cout << "num rows is " << num_rows << "\n";
+
+    //loop through and bind
+    int istr_index = 0;
+    int rows_inserted = 0;
+    for (int rownum = 0; rownum < num_rows; ++rownum) 
+    {
+        for (int colnum = 0; colnum < num_params; ++colnum) 
+        {
+            // sqlite3_bind_text(stmt, param_idx, param_string, param_len (or -1 for strlen), destructor or constant);
+            sqlite3_bind_text(stmt, colnum + 1, insert_strings[istr_index], -1, SQLITE_STATIC);
+            ++istr_index;
+        }
+        sqlite3_step(stmt);     //processes the statement
+        rows_inserted += sqlite3_changes(db);
+        sqlite3_reset(stmt);    // reset the statement for next run
+    }
+
+    sqlite3_finalize(stmt);
+    std::cout << "\ninserted " << rows_inserted << " rows \n";
+
+    std::cout << "commit transaction:\n";
+    sql_do(db, sql_commit);
+
+    // fetch all rows
+    std::cout << "\nfetch all rows:\n";
+    sqlite3_prepare_v2(db, sql_select_all, -1, &stmt, nullptr);
+    col_count = sqlite3_column_count(stmt);
+    row_count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) 
+    {
+        std::cout << "  row " << ++row_count << ": ";
+        for (int i = 0; i < col_count; ++i) 
+        {
+            std::cout <<  sqlite3_column_text(stmt, i);
+            if(i < col_count - 1) std::cout <<  ", ";
+            else std::cout <<"\n";
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    // find a row
+    std::cout << "\nfind row with a='four'\n";
+    param1 = "four";
+    sqlite3_prepare_v2(db, sql_select_where, -1, &stmt, nullptr);
+    std::cout << "The statement " << sql_select_where << " has " << sqlite3_bind_parameter_count(stmt) << " parameter(s)\n";
+
+    // bind the string to the statement
+    sqlite3_bind_text(stmt, 1, param1, -1, SQLITE_STATIC);
+
+    // fetch result
+    col_count = sqlite3_column_count(stmt);
+    row_count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) 
+    {
+        std::cout << "  row " << ++row_count << ": ";
+        for (int i = 0; i < col_count; ++i) {
+            std::cout <<  sqlite3_column_text(stmt, i);
+            if(i < col_count - 1) std::cout <<  ", ";
+            else std::cout <<"\n";
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    std::cout << "drop table\n";
+    sql_do(db, sql_drop);
+
+    std::cout << "close db\n";
     sqlite3_close(db);
     return 0;
 }
