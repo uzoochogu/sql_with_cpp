@@ -39,7 +39,7 @@ int main() {
     sqlite3_stmt * stmt = nullptr;
     
     int rc = sqlite3_open(db_file, &db);
-    if(rc == SQLITE_OK) {
+    if (rc == SQLITE_OK) {
         puts("database open");
     } else {
         printf("sqlite3_open returned an error (%d)\n", rc);
@@ -65,8 +65,8 @@ int main() {
 
     int istr_index = 0;
     int rows_inserted = 0;
-    for(int rownum = 0; rownum < num_rows; ++rownum) {
-        for(int colnum = 0; colnum < num_params; ++colnum) {
+    for (int rownum = 0; rownum < num_rows; ++rownum) {
+        for (int colnum = 0; colnum < num_params; ++colnum) {
             // sqlite3_bind_text(stmt, param_idx, param_string, param_len (or -1 for strlen), destructor or constant);
             sqlite3_bind_text(stmt, colnum + 1, insert_strings[istr_index], -1, SQLITE_STATIC);
             ++istr_index;
@@ -76,7 +76,7 @@ int main() {
         sqlite3_reset(stmt);    // reset the statement for next run
     }
     sqlite3_finalize(stmt);
-    printf("insterted %d rows\n", rows_inserted);
+    printf("inserted %d rows\n", rows_inserted);
 
     // commit transaction
     puts("commit transaction");
