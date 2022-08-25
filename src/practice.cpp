@@ -3,6 +3,7 @@
 #include <sqlcpp.h>
 
 constexpr const char *db_file = DB_PATH "/practice.db";
+constexpr const char * db_file2 = DB_PATH "/scratch.db";
 
 constexpr const char * sql_create_db1 =
         "DROP TABLE IF EXISTS students;"
@@ -14,7 +15,7 @@ constexpr const char * sql_create_db1 =
         "COMMIT;"
 ;
 
-constexpr const char * db_file2 = DB_PATH "/scratch.db";
+
 
 constexpr const char * sql_drop = "DROP TABLE IF EXISTS temp";
 constexpr const char * sql_create = "CREATE TABLE IF NOT EXISTS temp ( a TEXT, b TEXT, c TEXT )";
@@ -42,6 +43,33 @@ int sql_do(sqlite3 * db, const char * sql)
         exit(1);
     }
     return sqlite3_changes(db);    //good practice to return this
+}
+
+//Utility to copy rows from one db table to another
+void sql_db_table_copy_all(sqlite3* db, char* table1, char* table2)
+{
+    constexpr const int table_num = 2;
+    sqlite3_stmt* stmt1 = nullptr;
+    sqlite3_stmt* stmt2 = nullptr;
+
+    char* sql_check = 
+    "SELECT count(*) FROM sqlite_master WHERE type='table'"
+    " AND  name = ?";
+
+    //check that the two tables exists in the DB
+    char * tables[] = {table1, table2};
+    int num_rows = sizeof(tables) / sizeof(char *);
+    for(int i = 0; i < num_rows; i++)
+    {
+        sqlite3_prepare_v2(db, sql_check, -1, &stmt1, nullptr);
+        sqlite3_bind_text(stmt1, 1, tables[i], -1, SQLITE_STATIC);
+        sqlite3_step(stmt1);
+        if(sqlite3_column_int(stmt1, 0) == 0)
+        {
+            std::cout << tables[i] << " table does not exist!\n";
+        }
+        sqlite3_reset(stmt1);
+    }
 }
 
 int main()
@@ -181,7 +209,7 @@ int main()
             ++istr_index;
         }
         sqlite3_step(stmt);     //processes the statement
-        rows_inserted += sqlite3_changes(db);
+        rows_inserted += sqlite3_changes(db);           //number of rows modified
         sqlite3_reset(stmt);    // reset the statement for next run
     }
 
@@ -236,5 +264,28 @@ int main()
 
     std::cout << "close db\n";
     sqlite3_close(db);
+
+
+    //Challenge 1: copy from rows from one table to another in practice.db
+    db = nullptr;
+    stmt = nullptr;
+    sqlite3_stmt* stmt2 = nullptr;    //second statement 
+
+    //open db
+    rc = sqlite3_open(db_file, &db);
+    
+
+    //check that opening was successful, 
+    if (rc == SQLITE_OK)
+    {
+        std::cout << "database practice.db open\n";
+    }
+    else
+    {
+        std::cout << sqlite3_errstr(rc) << "\n";
+        exit(1);
+    }
+
+
     return 0;
 }
