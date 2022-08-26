@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sqlite3.h>
 #include <sqlcpp.h>
+#include <cstdio>  //I will be change to std::format in C++20
 
 constexpr const char *db_file = DB_PATH "/practice.db";
 constexpr const char * db_file2 = DB_PATH "/scratch.db";
@@ -56,7 +57,7 @@ void sql_db_table_copy_all(sqlite3* db, char* table1, char* table2)
     "SELECT count(*) FROM sqlite_master WHERE type='table'"
     " AND  name = ?";
 
-    //check that the two tables exists in the DB
+    //check that the two tables exists in the DB and have same column
     char * tables[] = {table1, table2};
     int num_rows = sizeof(tables) / sizeof(char *);
     for(int i = 0; i < num_rows; i++)
@@ -70,6 +71,36 @@ void sql_db_table_copy_all(sqlite3* db, char* table1, char* table2)
         }
         sqlite3_reset(stmt1);
     }
+
+    //Copy first table table
+    stmt1 = nullptr;
+    char sql_select_all[80]; //magic number to be changed
+    sprintf(sql_select_all, "SELECT * FROM %s", table1);
+
+    char sql_insert[80];
+    sprintf(sql_insert, "INSERT INTO %s VALUES (?, ?, ?)", table2); //! arbitrary number of binds!!!
+
+    sqlite3_prepare_v2(db, sql_select_all, -1, &stmt1, nullptr);
+    sqlite3_prepare_v2(db, sql_insert, -1, &stmt2, nullptr);
+    int num_params = sqlite3_bind_parameter_count(stmt2);
+
+    char* data;
+
+    int col_count = sqlite3_column_count(stmt1);
+    int row_count = 0;
+    //Traverse and copy
+    while(sqlite3_step(stmt1) == SQLITE_ROW)
+    {
+        for(int colnum = 0;  colnum < num_params; ++colnum) //insert only as much table2 can take
+        {
+            //copy the data
+            data = sqlite3_column_text(stmt1, colnum);  //fix this
+            sqlite3_bind_text(stmt2, colnum + 1, data, -1, SQLITE_STATIC);
+        }
+        sqlite3_step(stmt2);
+        sqlite3_reset(stmt2);
+    }
+    std::cout << "\nCopying done\n:";
 }
 
 int main()
@@ -285,6 +316,9 @@ int main()
         std::cout << sqlite3_errstr(rc) << "\n";
         exit(1);
     }
+
+    //copy rows from one table to another within a db
+    sql_db_table_copy_all(db, "students", "students_copy");
 
 
     return 0;
