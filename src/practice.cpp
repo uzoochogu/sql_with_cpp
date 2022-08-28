@@ -12,7 +12,7 @@ constexpr const char * sql_create_db1 =
         "CREATE TABLE IF NOT EXISTS students( student_id INTEGER, name VARCHAR(55), year INTEGER);"
         "INSERT INTO students VALUES (1, 'Emmanuel Ayomide', 2003);"
         "INSERT INTO students VALUES (2, 'Ibrahim Musa', 2002);"
-        "INSERT INTO students VALUES (3, 'Emeka Frank', 2003);"
+        "INSERT INTO students VALUES (3, 'Emeka Frank', 2001);"
         "COMMIT;"
 ;
 
@@ -47,17 +47,18 @@ int sql_do(sqlite3 * db, const char * sql)
 }
 
 //Utility to copy rows from one db table to another
-void sql_db_table_copy_all(sqlite3* db, char* table1, char* table2)
+bool sql_db_table_copy_all(sqlite3* db, char* table1, char* table2)
 {
     constexpr const int table_num = 2;
     sqlite3_stmt* stmt1 = nullptr;
     sqlite3_stmt* stmt2 = nullptr;
+    int col_count2{0};
 
     char* sql_check = 
     "SELECT count(*) FROM sqlite_master WHERE type='table'"
     " AND  name = ?";
 
-    //check that the two tables exists in the DB and have same column
+    //check that the two tables exists in the DB
     char * tables[] = {table1, table2};
     int num_rows = sizeof(tables) / sizeof(char *);
     for(int i = 0; i < num_rows; i++)
@@ -68,43 +69,61 @@ void sql_db_table_copy_all(sqlite3* db, char* table1, char* table2)
         if(sqlite3_column_int(stmt1, 0) == 0)
         {
             std::cout << tables[i] << " table does not exist!\n";
+            return false;
         }
         sqlite3_reset(stmt1);
     }
+    sqlite3_finalize(stmt1);
 
-    //Copy first table table
+    //get table 2 column count 
+    char* longer_table_name = (strlen(table1) > strlen(table2) ) ? table1: table2;  // buffer created once, use longest table name
+    size_t nbytes = snprintf(nullptr, 0, "SELECT * FROM %s", longer_table_name) + 1; // +1 for the '\0'
+    char* sql_select_all = new char[nbytes]; //use only as much as is required 
+    snprintf(sql_select_all, nbytes, "SELECT * FROM %s", table2); //Check and Allocate idiom - Coined by me, better than sprintf_s, sprintf
+    sqlite3_prepare_v2(db, sql_select_all,-1, &stmt1, nullptr);
+    col_count2 = sqlite3_column_count(stmt1);
+    sqlite3_finalize(stmt1);
+
+    //Select all rows in first table
     stmt1 = nullptr;
-    char sql_select_all[80]; //magic number to be changed
-    sprintf_s(sql_select_all, 80, "SELECT * FROM %s", table1);
-
-    char sql_insert[80];
-    sprintf_s(sql_insert, 80,  "INSERT INTO %s VALUES (?, ?, ?)", table2); //! arbitrary number of binds!!!
-
+    nbytes = snprintf(nullptr, 0, "SELECT * FROM %s", table2) + 1;
+    snprintf(sql_select_all, nbytes, "SELECT * FROM %s", table1);
     sqlite3_prepare_v2(db, sql_select_all, -1, &stmt1, nullptr);
-    sqlite3_prepare_v2(db, sql_insert, -1, &stmt2, nullptr);
-    int num_params = sqlite3_bind_parameter_count(stmt2);
 
-    char* data = new char[80];
+    //start transaction
+    sqlite3_exec(db, "BEGIN;", nullptr, nullptr, nullptr); //Good practice
 
-    int col_count = sqlite3_column_count(stmt1);
-    int row_count = 0;
+    //format insert statement for second table
+    nbytes = snprintf(nullptr, 0, "INSERT INTO %s VALUES (", table2) + 1; 
+    char* sql_insert = new char[nbytes]; 
+    snprintf(sql_insert, nbytes, "INSERT INTO %s VALUES (", table2);
+    std::string buf{sql_insert};
+    for(int i = 0; i < col_count2; i++)
+    {
+        buf.append("?");
+        if( i < col_count2 - 1) buf.append(", ");
+        else buf.append(")");
+    }
+    sqlite3_prepare_v2(db, buf.c_str(), -1, &stmt2, nullptr);
+    
     //Traverse and copy
     while(sqlite3_step(stmt1) == SQLITE_ROW)
     {
-        for(int colnum = 0;  colnum < num_params; ++colnum) //insert only as much table2 can take
+        for(int colnum = 0;  colnum < col_count2; ++colnum) //insert only as much table2 can take
         {
             //copy the data
-            std::cout << sqlite3_column_text(stmt1, colnum) << "\n";
-            std::strcpy(data, reinterpret_cast<const char*>(sqlite3_column_text(stmt1, colnum)));  //fix this
-            std::cout << data << "\n";
-            sqlite3_bind_text(stmt2, colnum + 1, data, -1, SQLITE_STATIC);
+            buf.assign(reinterpret_cast<const char*>(sqlite3_column_text(stmt1, colnum)));
+            sqlite3_bind_text(stmt2, colnum + 1, buf.c_str(), -1, SQLITE_TRANSIENT);  //copy string object prior to return of bind func
         }
         sqlite3_step(stmt2);
         sqlite3_reset(stmt2);
     }
     sqlite3_finalize(stmt1);
     sqlite3_finalize(stmt2);
-    std::cout << "\nCopying done!\n";
+
+    sqlite3_exec(db, "COMMIT;", nullptr, nullptr, nullptr);
+
+    return true;
 }
 
 int main()
@@ -294,9 +313,6 @@ int main()
     }
     sqlite3_finalize(stmt);
 
-    std::cout << "drop table\n";
-    sql_do(db, sql_drop);
-
     std::cout << "close db\n";
     sqlite3_close(db);
 
@@ -327,8 +343,10 @@ int main()
     sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS students_copy( student_id INTEGER, name VARCHAR(55), year INTEGER);",nullptr, nullptr, nullptr);
 
     //copy rows from one table to another within a db
-    sql_db_table_copy_all(db, "students", "students_copy");
-
-
+    if(sql_db_table_copy_all(db, "students", "students_copy"))
+    {
+        std::cout << "\nCopying done!\n";
+    }
+    else std::cout << "\nThere was an error copying!\n";
     return 0;
 }
