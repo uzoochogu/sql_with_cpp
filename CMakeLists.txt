@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 #sources
-set(sources "hello-sqlite" "db-query" "db-prepare" "db-prepare2" "practice")
+set(sources "hello-sqlite" "db-query" "db-prepare" "db-prepare2" "Ch02-solution" "practice")
 
 
 #executables
