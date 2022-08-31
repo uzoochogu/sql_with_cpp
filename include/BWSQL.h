@@ -1,6 +1,7 @@
 //  BWSQL.h
 //  Copyright 2021 BHG [bw.org]
 //  as of 2021-06-01 bw
+//  edited by uzo ochogu
 
 #ifndef BWSQL_H
 #define BWSQL_H
@@ -9,7 +10,7 @@
 #include <sqlcpp.h>
 #include <cstdio>
 #include <cstdlib>
-#include <cstdarg>
+#include <cstdarg>          /* va_list, va_start, va_arg, va_end */
 #include <memory>
 
 namespace bw {
