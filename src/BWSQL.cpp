@@ -1,6 +1,8 @@
 //  BWSQL.cpp
 //  Copyright 2021 BHG [bw.org]
 //  as of 2021-06-01 bw
+//  edited by uzo ochogu
+
 
 #include "BWSQL.h"
 
@@ -137,7 +139,7 @@ const char * BWSQL::filename() {
 int BWSQL::num_params(const char * sql) {
     constexpr char bind_char = '?';
     int count = 0;
-    size_t len = strnlen(sql, MAX_STRING_LENGTH);
+    size_t len = strnlen(sql, MAX_STRING_LENGTH);     //returns MAX_STRING_LENGTH if no \n found
     for(int i = 0; i < len; ++i) {
         if(sql[i] == bind_char) ++count;
     }
