@@ -8,7 +8,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 #sources
 set(sources "hello-sqlite" "db-query" "db-prepare" "db-prepare2" "ch02-solution" "practice")
 
-
 #executables
 foreach(File IN LISTS sources)
     add_executable(${File} src/sqlite3.c src/${File}.cpp)
@@ -19,4 +18,14 @@ foreach(File IN LISTS sources)
     )    
 endforeach()
 
+#executables using BWSQL.cpp
+set(other_sources "bwsql-test")
+foreach(File IN LISTS other_sources)
+    add_executable(${File} src/sqlite3.c src/BWSQL.cpp src/${File}.cpp)
+
+    target_include_directories( ${File}
+    PRIVATE 
+        ${PROJECT_SOURCE_DIR}/include
+    )    
+endforeach()
 
