@@ -1,3 +1,11 @@
+/**
+ * @file uzo_sqlite_utils.hpp
+ * @author Uzo Ochogu (uzoochogu@yahoo.com)
+ * @brief Utility functions for SQLITE3 Applications.
+ * 
+ * 
+ */
+
 #ifndef UZO_SQLITE_UTILS_H
 #define UZO_SQLITE_UTILS_H
 
